@@ -28,10 +28,15 @@ import static android.hardware.Camera.getNumberOfCameras;
 
 public class CameraContainerView extends RelativeLayout {
 
+    private static final int CAMERA_PREVIEW_TYPE_SURFACE_VIEW = 0;
+    private static final int CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW = 1;
+
+    private static int CAMERA_PREVIEW_TYPE = CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW;
+
     private static final String TAG = "CameraContainerView";
 
     private ICameraUtil cameraUtil = new CameraUtil();
-    private CameraPreview cameraPreview;
+    private ICameraPreview cameraPreview;
     private ViewGroup previewContainer;
     private Camera camera;
 
@@ -112,11 +117,31 @@ public class CameraContainerView extends RelativeLayout {
             return;
         }
         camera = cameraAndId.camera;
-        cameraPreview = new CameraPreview(getContext(), camera, cameraAndId.id);
-
+        cameraPreview = createCameraPreview(getContext(), camera, cameraAndId.id);
         previewContainer.removeAllViews();
-        previewContainer.addView(cameraPreview, 0);
+        if (cameraPreview == null) {
+            Log.e(TAG, "fail creating camera preview");
+            return;
+        }
+        previewContainer.addView((View) cameraPreview, 0);
 
+    }
+
+    private ICameraPreview createCameraPreview(Context context, Camera camera, int id) {
+        ICameraPreview cameraPreview = null;
+        switch (CAMERA_PREVIEW_TYPE) {
+            case CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW:
+                CameraPreviewGLSurfaceView cameraPreviewGLSurfaceView = new CameraPreviewGLSurfaceView(context);
+                cameraPreviewGLSurfaceView.setCamera(camera, id);
+                cameraPreview = cameraPreviewGLSurfaceView;
+                break;
+            case CAMERA_PREVIEW_TYPE_SURFACE_VIEW:
+                CameraPreviewSurfaceView cameraPreviewSurfaceView = new CameraPreviewSurfaceView(context);
+                cameraPreviewSurfaceView.setCamera(camera, id);
+                cameraPreview = cameraPreviewSurfaceView;
+                break;
+        }
+        return cameraPreview;
     }
 
     public void onHide() {
@@ -124,6 +149,7 @@ public class CameraContainerView extends RelativeLayout {
             camera.release();
             camera = null;
         }
+        cameraPreview.setCamera(null, -1);
     }
 
     private static CameraAndId getCameraInstance() {
