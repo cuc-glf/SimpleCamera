@@ -18,25 +18,37 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 import static android.opengl.GLES20.GL_ARRAY_BUFFER;
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
 import static android.opengl.GLES20.GL_FLOAT;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
 import static android.opengl.GLES20.GL_STATIC_DRAW;
+import static android.opengl.GLES20.GL_TEXTURE0;
+import static android.opengl.GLES20.GL_TRIANGLE_STRIP;
 import static android.opengl.GLES20.GL_VERTEX_SHADER;
+import static android.opengl.GLES20.glActiveTexture;
 import static android.opengl.GLES20.glAttachShader;
 import static android.opengl.GLES20.glBindBuffer;
+import static android.opengl.GLES20.glBindTexture;
 import static android.opengl.GLES20.glBufferData;
+import static android.opengl.GLES20.glClear;
+import static android.opengl.GLES20.glClearColor;
 import static android.opengl.GLES20.glCompileShader;
 import static android.opengl.GLES20.glCreateProgram;
 import static android.opengl.GLES20.glCreateShader;
+import static android.opengl.GLES20.glDrawArrays;
+import static android.opengl.GLES20.glEnableVertexAttribArray;
 import static android.opengl.GLES20.glGenBuffers;
 import static android.opengl.GLES20.glGenTextures;
 import static android.opengl.GLES20.glGetAttribLocation;
 import static android.opengl.GLES20.glGetProgramInfoLog;
 import static android.opengl.GLES20.glGetShaderInfoLog;
+import static android.opengl.GLES20.glGetUniformLocation;
 import static android.opengl.GLES20.glLinkProgram;
 import static android.opengl.GLES20.glShaderSource;
+import static android.opengl.GLES20.glUniform1i;
 import static android.opengl.GLES20.glUseProgram;
 import static android.opengl.GLES20.glVertexAttribPointer;
+import static android.opengl.GLES20.glViewport;
 
 /**
  * Created by gaolf on 17/1/7.
@@ -49,11 +61,13 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             "attribute vec2 inTexCoord;\n" +
             "varying vec2 texCoord;\n" +
             "void main() {\n" +
-            "\tgl_Position = inPosition;\n" +
+            "\tgl_Position = vec4(inPosition);\n" +
+            "\ttexCoord = inTexCoord;\n" +
             "}";
 
     private static final String FRAGMENT_SHADER =
             "#extension GL_OES_EGL_image_external : require\n" +
+            "precision highp float;\n" +
             "varying vec2 texCoord;\n" +
             "uniform samplerExternalOES tex;\n" +
             "void main() {\n" +
@@ -62,14 +76,17 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
 
     private static final float[] VERTEX_DATA = new float[] {
         -1.0f, 1.0f, 0.0f,      // 左上
-        0.0f, 0.0f,             // 纹理左上
-        -1.0f, -1.0f, 0.0f,
         0.0f, 1.0f,
-        1.0f, 1.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f,
         1.0f, 1.0f,
+        1.0f, 1.0f, 0.0f,
+        0.0f, 0.0f,
+        1.0f, -1.0f, 0.0f,
+        1.0f, 0.0f,
     };
+
+
+    private static final int GL_TEXTURE_EXTERNAL_OES = 0x8d65;
 
     private static final String TAG = "CameraPreviewGLSV";
 
@@ -118,11 +135,8 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
             compileProgram();
             bindVertexAttrib();
+            bindTexture();
 
-            int[] textures = new int[1];
-            glGenTextures(1, textures, 0);
-            mSurfaceTextureName = textures[0];
-            mSurfaceTexture = new SurfaceTexture(mSurfaceTextureName);
             mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
                 private int count = 0;
                 @Override
@@ -141,6 +155,7 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
                 }
             });
 
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         }
 
         private void compileProgram() {
@@ -173,7 +188,6 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
         }
 
         private void bindVertexAttrib() {
-
             int[] attribLocArray = new int[2];
             int[] arrayBuffer = new int[1];
 
@@ -182,7 +196,7 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             Log.d(TAG, "inPositionLoc: " + attribLocArray[IN_POSITION] +
                     ", inTexCoordLoc: " + attribLocArray[IN_TEX_COORD]);
 
-            FloatBuffer vertexDataBuffer = ByteBuffer.allocate(Float.SIZE / 8 * VERTEX_DATA.length)
+            FloatBuffer vertexDataBuffer = ByteBuffer.allocateDirect(Float.SIZE / 8 * VERTEX_DATA.length)
                     .order(ByteOrder.nativeOrder())
                     .asFloatBuffer();
             vertexDataBuffer.put(VERTEX_DATA).position(0);
@@ -191,7 +205,22 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             glBufferData(GL_ARRAY_BUFFER, Float.SIZE / 8 * VERTEX_DATA.length, vertexDataBuffer, GL_STATIC_DRAW);
 
             glVertexAttribPointer(attribLocArray[IN_POSITION], 3, GL_FLOAT, false, Float.SIZE / 8 * 5, 0);
-            // todo...
+            glVertexAttribPointer(attribLocArray[IN_TEX_COORD], 2, GL_FLOAT, false, Float.SIZE / 8 * 5, Float.SIZE / 8 * 3);
+            glEnableVertexAttribArray(attribLocArray[IN_POSITION]);
+            glEnableVertexAttribArray(attribLocArray[IN_TEX_COORD]);
+        }
+
+        private void bindTexture() {
+            int texUniLoc = -1;
+            int[] textures = new int[1];
+
+            glActiveTexture(GL_TEXTURE0);
+            glGenTextures(1, textures, 0);
+            mSurfaceTextureName = textures[0];
+            glBindTexture(GL_TEXTURE_EXTERNAL_OES, textures[0]);
+            mSurfaceTexture = new SurfaceTexture(mSurfaceTextureName);
+            glGetUniformLocation(program, "tex");
+            glUniform1i(texUniLoc, 0);
         }
 
 
@@ -201,6 +230,8 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
                 return;
             }
 
+
+            glViewport(0, 0, width, height);
             // stop preview before making changes
             try {
                 mCamera.stopPreview();
@@ -214,7 +245,6 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             CameraUtil.adjustCameraParameters(parameters);
             CameraUtil.setCameraDisplayOrientation((Activity) getContext(), mCameraId, mCamera);
             mCamera.setParameters(parameters);
-
 
             // start preview with new settings
             try {
@@ -233,6 +263,8 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
     }
 }

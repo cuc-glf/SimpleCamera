@@ -48,6 +48,7 @@ public class CameraUtil implements ICameraUtil {
         }
 
         if (bestSize != null) {
+            Log.d(TAG, "bestSize: " + bestSize.width + "x" + bestSize.height);
             parameters.setPreviewSize(bestSize.width, bestSize.height);
         }
 
