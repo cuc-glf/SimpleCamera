@@ -1,6 +1,5 @@
 package com.example.gaolf.simplecamera;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -242,8 +241,8 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             // set preview size and make any resize, rotate or
             // reformatting changes here
             Camera.Parameters parameters = mCamera.getParameters();
-            CameraUtil.adjustCameraParameters(parameters);
-            CameraUtil.setCameraDisplayOrientation((Activity) getContext(), mCameraId, mCamera);
+            CameraUtil.adjustCameraParameters(parameters, null);
+//            CameraUtil.setCameraDisplayOrientation((Activity) getContext(), mCameraId, mCamera);
             mCamera.setParameters(parameters);
 
             // start preview with new settings

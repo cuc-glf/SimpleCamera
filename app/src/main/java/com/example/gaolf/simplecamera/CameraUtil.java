@@ -3,10 +3,13 @@ package com.example.gaolf.simplecamera;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Point;
 import android.hardware.Camera;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Display;
 import android.view.Surface;
+import android.view.WindowManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,6 +24,10 @@ public class CameraUtil implements ICameraUtil {
 
     private static final String TAG = "CameraUtil";
 
+    private static Context getApplication() {
+        return MyApplication.getApplication();
+    }
+
     public boolean checkCameraHardware(Context context) {
         if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)){
             // this device has a camera
@@ -32,7 +39,15 @@ public class CameraUtil implements ICameraUtil {
     }
 
 
-    public static void adjustCameraParameters(Camera.Parameters parameters) {
+    public static void adjustCameraParameters(Camera.Parameters parameters, Point previewSize) {
+        if (previewSize == null) {
+            previewSize = new Point();
+            Context c = getApplication();
+            WindowManager wm = (WindowManager) c.getSystemService(Context.WINDOW_SERVICE);
+            Display display = wm.getDefaultDisplay();
+            display.getSize(previewSize);
+        }
+        float previewAspect = previewSize.x / previewSize.y;    // aspect ＝ width / height
 
         // 1. 设置尺寸
         List<Camera.Size> supportedSizes = parameters.getSupportedPreviewSizes();
@@ -41,7 +56,11 @@ public class CameraUtil implements ICameraUtil {
         Camera.Size bestSize = null;
         for (Camera.Size size : supportedSizes) {
             temp = size.height * size.width;
-            if (temp > max) {
+            if (
+                    temp > max  // 分辨率更高
+                    && Math.abs(((float) size.width / (float) size.height) - previewAspect) < 0.1f  // 宽高比合适
+                )
+            {
                 max = temp;
                 bestSize = size;
             }
@@ -101,6 +120,9 @@ public class CameraUtil implements ICameraUtil {
         return -1;
     }
 
+    /**
+     * 当渲染到纹理时，该设置似乎没用，Camera只会按照原来的方向来渲染纹理
+     */
     public static void setCameraDisplayOrientation(Activity activity, int cameraId, android.hardware.Camera camera) {
         android.hardware.Camera.CameraInfo info =
                 new android.hardware.Camera.CameraInfo();
