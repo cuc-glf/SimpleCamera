@@ -149,7 +149,10 @@ public class CameraContainerView extends RelativeLayout {
             camera.release();
             camera = null;
         }
-        cameraPreview.setCamera(null, -1);
+        if (cameraPreview != null) {
+            cameraPreview.setCamera(null, -1);
+            cameraPreview = null;
+        }
     }
 
     private static CameraAndId getCameraInstance() {

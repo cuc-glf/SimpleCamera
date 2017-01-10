@@ -119,7 +119,7 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             // set preview size and make any resize, rotate or
             // reformatting changes here
             Camera.Parameters parameters = mCamera.getParameters();
-            CameraUtil.adjustCameraParameters(parameters, null);
+            CameraUtil.adjustCameraParameters(parameters, mCameraId, null);
 //            CameraUtil.setCameraDisplayOrientation((Activity) getContext(), mCameraId, mCamera);
             mCamera.setParameters(parameters);
 

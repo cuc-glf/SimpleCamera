@@ -70,6 +70,8 @@ public class BaseShader implements IShader {
                     "\tgl_FragColor = texture2D(tex, texCoord);\n" +
                     "}";
 
+    // todo, 为什么给camera设置orientation后，纹理图像还是相机默认的横向的，而不是竖向的？
+    // todo, 如果相机默认不是横向，需要根据相机默认方向，更改这里的纹理坐标
     private static final float[] VERTEX_DATA = new float[] {
             -1.0f, 1.0f, 0.0f,      // 左上
             0.0f, 1.0f,

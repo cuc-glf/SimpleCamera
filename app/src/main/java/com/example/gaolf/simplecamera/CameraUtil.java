@@ -39,7 +39,7 @@ public class CameraUtil implements ICameraUtil {
     }
 
 
-    public static void adjustCameraParameters(Camera.Parameters parameters, Point previewSize) {
+    public static void adjustCameraParameters(Camera.Parameters parameters, int cameraId, Point previewSize) {
         if (previewSize == null) {
             previewSize = new Point();
             Context c = getApplication();
@@ -49,16 +49,23 @@ public class CameraUtil implements ICameraUtil {
         }
         float previewAspect = (float)previewSize.x / previewSize.y;    // aspect ＝ width / height
 
+        Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+        Camera.getCameraInfo(cameraId, cameraInfo);
+
         // 1. 设置尺寸
         List<Camera.Size> supportedSizes = parameters.getSupportedPreviewSizes();
+        float currAspect;
         long max = 0;
         long temp = 0;
         Camera.Size bestSize = null;
         for (Camera.Size size : supportedSizes) {
             temp = size.height * size.width;
+            currAspect = (cameraInfo.orientation == 0 || cameraInfo.orientation == 180) ?
+                    (float)size.width / size.height :
+                    (float)size.height / size.width;
             if (
                     temp > max  // 分辨率更高
-                    && Math.abs(((float) size.width / (float) size.height) - previewAspect) < 0.1f  // 宽高比合适
+                    && Math.abs(currAspect - previewAspect) < 0.1f  // 宽高比合适
                 )
             {
                 max = temp;
