@@ -47,7 +47,7 @@ public class CameraUtil implements ICameraUtil {
             Display display = wm.getDefaultDisplay();
             display.getSize(previewSize);
         }
-        float previewAspect = previewSize.x / previewSize.y;    // aspect ＝ width / height
+        float previewAspect = (float)previewSize.x / previewSize.y;    // aspect ＝ width / height
 
         // 1. 设置尺寸
         List<Camera.Size> supportedSizes = parameters.getSupportedPreviewSizes();
