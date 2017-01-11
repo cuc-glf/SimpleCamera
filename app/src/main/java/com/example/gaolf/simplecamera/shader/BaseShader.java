@@ -1,6 +1,5 @@
 package com.example.gaolf.simplecamera.shader;
 
-import android.text.TextUtils;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -9,30 +8,29 @@ import java.nio.FloatBuffer;
 
 import static android.opengl.GLES20.GL_ARRAY_BUFFER;
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
 import static android.opengl.GLES20.GL_FLOAT;
-import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
+import static android.opengl.GLES20.GL_LINEAR;
 import static android.opengl.GLES20.GL_STATIC_DRAW;
 import static android.opengl.GLES20.GL_TEXTURE0;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
-import static android.opengl.GLES20.GL_VERTEX_SHADER;
+import static android.opengl.GLES20.GL_TRIANGLE_STRIP;
 import static android.opengl.GLES20.glActiveTexture;
-import static android.opengl.GLES20.glAttachShader;
 import static android.opengl.GLES20.glBindBuffer;
 import static android.opengl.GLES20.glBindTexture;
 import static android.opengl.GLES20.glBufferData;
-import static android.opengl.GLES20.glCompileShader;
-import static android.opengl.GLES20.glCreateProgram;
-import static android.opengl.GLES20.glCreateShader;
+import static android.opengl.GLES20.glClear;
+import static android.opengl.GLES20.glDrawArrays;
 import static android.opengl.GLES20.glEnableVertexAttribArray;
 import static android.opengl.GLES20.glGenBuffers;
 import static android.opengl.GLES20.glGenTextures;
 import static android.opengl.GLES20.glGetAttribLocation;
-import static android.opengl.GLES20.glGetProgramInfoLog;
-import static android.opengl.GLES20.glGetShaderInfoLog;
 import static android.opengl.GLES20.glGetUniformLocation;
-import static android.opengl.GLES20.glLinkProgram;
-import static android.opengl.GLES20.glShaderSource;
+import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
 import static android.opengl.GLES20.glUniform1i;
 import static android.opengl.GLES20.glUseProgram;
@@ -54,36 +52,43 @@ public class BaseShader implements IShader {
 
     private static final String VERTEX_SHADER =
             "attribute vec4 inPosition;\n" +
-                    "attribute vec2 inTexCoord;\n" +
-                    "varying vec2 texCoord;\n" +
-                    "void main() {\n" +
-                    "\tgl_Position = vec4(inPosition);\n" +
-                    "\ttexCoord = inTexCoord;\n" +
-                    "}";
+            "attribute vec2 inTexCoord;\n" +
+            "varying vec2 texCoord;\n" +
+            "void main() {\n" +
+            "\tgl_Position = vec4(inPosition);\n" +
+            "\ttexCoord = inTexCoord;\n" +
+            "}";
 
     private static final String FRAGMENT_SHADER =
             "#extension GL_OES_EGL_image_external : require\n" +
-                    "precision highp float;\n" +
-                    "varying vec2 texCoord;\n" +
-                    "uniform samplerExternalOES tex;\n" +
-                    "void main() {\n" +
-                    "\tgl_FragColor = texture2D(tex, texCoord);\n" +
-                    "}";
+            "precision highp float;\n" +
+            "varying vec2 texCoord;\n" +
+            "uniform samplerExternalOES tex;\n" +
+            "void main() {\n" +
+            "\tgl_FragColor = texture2D(tex, texCoord);\n" +
+            "}";
 
     // todo, 为什么给camera设置orientation后，纹理图像还是相机默认的横向的，而不是竖向的？
     // todo, 如果相机默认不是横向，需要根据相机默认方向，更改这里的纹理坐标
-    private static final float[] VERTEX_DATA = new float[] {
+    protected static final float[] VERTEX_DATA = new float[] {
             -1.0f, 1.0f, 0.0f,      // 左上
-            0.0f, 1.0f,
             -1.0f, -1.0f, 0.0f,
-            1.0f, 1.0f,
             1.0f, 1.0f, 0.0f,
-            0.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
+
+            0.0f, 1.0f,             // 修正相机texture的坐标
+            1.0f, 1.0f,
+            0.0f, 0.0f,
             1.0f, 0.0f,
+
+            0.0f, 1.0f,             // 正常纹理坐标
+            0.0f, 0.0f,
+            1.0f, 1.0f,
+            1.0f, 0.0f,
+
     };
 
-    private static final int GL_TEXTURE_EXTERNAL_OES = 0x8d65;
+    public static final int GL_TEXTURE_EXTERNAL_OES = 0x8d65;
 
     private static final int IN_POSITION = 0;
     private static final int IN_TEX_COORD = 1;
@@ -91,19 +96,21 @@ public class BaseShader implements IShader {
     protected int program;
     protected int mSurfaceTextureName;
 
+    @Override
+    public void init() {
+        program = ShaderUtil.loadProgram(getVertexShader(), getFragmentShader());
+    }
 
     @Override
-    public final boolean apply() {
-        compileProgram();
+    public final void apply() {
+        glUseProgram(program);
         bindVertexAttrib();
         bindTexture();
-
-        return true;
     }
 
     @Override
     public void destroy() {
-
+        // GLSurfaceView会在当前界面变成非可见状态时丢弃当前Context，这里不需要单独释放Context内的资源
     }
 
     @Override
@@ -117,33 +124,10 @@ public class BaseShader implements IShader {
 
     }
 
-    private void compileProgram() {
-
-        int vShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vShader, getVertexShader());
-        glCompileShader(vShader);
-        String infoLog = glGetShaderInfoLog(vShader);
-        if (!TextUtils.isEmpty(infoLog)) {
-            Log.e(TAG, "vShader compile info log: " + infoLog);
-        }
-
-        int fShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fShader, getFragmentShader());
-        glCompileShader(fShader);
-        infoLog = glGetShaderInfoLog(fShader);
-        if (!TextUtils.isEmpty(infoLog)) {
-            Log.e(TAG, "fShader compile info log: " + infoLog);
-        }
-
-        program = glCreateProgram();
-        glAttachShader(program, vShader);
-        glAttachShader(program, fShader);
-        glLinkProgram(program);
-        infoLog = glGetProgramInfoLog(program);
-        if (!TextUtils.isEmpty(infoLog)) {
-            Log.e(TAG, "program link info log: " + infoLog);
-        }
-        glUseProgram(program);
+    @Override
+    public void draw() {
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
     protected String getVertexShader() {
@@ -171,8 +155,8 @@ public class BaseShader implements IShader {
         glBindBuffer(GL_ARRAY_BUFFER, arrayBuffer[0]);
         glBufferData(GL_ARRAY_BUFFER, Float.SIZE / 8 * VERTEX_DATA.length, vertexDataBuffer, GL_STATIC_DRAW);
 
-        glVertexAttribPointer(attribLocArray[IN_POSITION], 3, GL_FLOAT, false, Float.SIZE / 8 * 5, 0);
-        glVertexAttribPointer(attribLocArray[IN_TEX_COORD], 2, GL_FLOAT, false, Float.SIZE / 8 * 5, Float.SIZE / 8 * 3);
+        glVertexAttribPointer(attribLocArray[IN_POSITION], 3, GL_FLOAT, false, 0, 0);
+        glVertexAttribPointer(attribLocArray[IN_TEX_COORD], 2, GL_FLOAT, false, 0, Float.SIZE / 8 * 3 * 4);
         glEnableVertexAttribArray(attribLocArray[IN_POSITION]);
         glEnableVertexAttribArray(attribLocArray[IN_TEX_COORD]);
     }
@@ -185,9 +169,12 @@ public class BaseShader implements IShader {
         glGenTextures(1, textures, 0);
         mSurfaceTextureName = textures[0];
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, textures[0]);
-        glGetUniformLocation(program, "tex");
+        texUniLoc = glGetUniformLocation(program, "tex");
         glUniform1i(texUniLoc, 0);
+        Log.d(TAG, "tex location: " + texUniLoc);
 
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }

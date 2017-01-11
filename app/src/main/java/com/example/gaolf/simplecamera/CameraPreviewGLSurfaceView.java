@@ -8,17 +8,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import com.example.gaolf.simplecamera.shader.BaseShader;
+import com.example.gaolf.simplecamera.shader.GaussianShader;
 import com.example.gaolf.simplecamera.shader.IShader;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
-import static android.opengl.GLES20.GL_TRIANGLE_STRIP;
-import static android.opengl.GLES20.glClear;
 import static android.opengl.GLES20.glClearColor;
-import static android.opengl.GLES20.glDrawArrays;
 import static android.opengl.GLES20.glViewport;
 
 /**
@@ -74,7 +70,8 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             if (mShader != null) {
                 Log.e(TAG, "onSurfaceCreated, mShader is not null, need to clear before stop.");
             }
-            mShader = new BaseShader();
+            mShader = new GaussianShader();
+            mShader.init();
             mShader.apply();
             mSurfaceTexture = new SurfaceTexture(mShader.getTextureName());
             mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
@@ -148,8 +145,7 @@ public class CameraPreviewGLSurfaceView extends GLSurfaceView implements ICamera
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            glClear(GL_COLOR_BUFFER_BIT);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            mShader.draw();
         }
     }
 }

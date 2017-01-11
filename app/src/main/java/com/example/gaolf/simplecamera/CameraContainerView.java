@@ -28,10 +28,10 @@ import static android.hardware.Camera.getNumberOfCameras;
 
 public class CameraContainerView extends RelativeLayout {
 
-    private static final int CAMERA_PREVIEW_TYPE_SURFACE_VIEW = 0;
-    private static final int CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW = 1;
+    public static final int CAMERA_PREVIEW_TYPE_SURFACE_VIEW = 0;
+    public static final int CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW = 1;
 
-    private static int CAMERA_PREVIEW_TYPE = CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW;
+    private int mCameraPreviewType = CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW;
 
     private static final String TAG = "CameraContainerView";
 
@@ -94,6 +94,10 @@ public class CameraContainerView extends RelativeLayout {
         init();
     }
 
+    public void setCameraPreviewType(int cameraPreviewType) {
+        mCameraPreviewType = cameraPreviewType;
+    }
+
     private void init() {
         LayoutInflater.from(getContext()).inflate(R.layout.camera_container_view, this);
         findViewById(R.id.camera_container_view_take_picture_btn).setOnClickListener(new OnClickListener() {
@@ -102,6 +106,7 @@ public class CameraContainerView extends RelativeLayout {
                 camera.takePicture(null, null, pictureCallback);
             }
         });
+
         previewContainer = (ViewGroup)findViewById(R.id.camera_container_view_preview_container);
     }
 
@@ -129,7 +134,7 @@ public class CameraContainerView extends RelativeLayout {
 
     private ICameraPreview createCameraPreview(Context context, Camera camera, int id) {
         ICameraPreview cameraPreview = null;
-        switch (CAMERA_PREVIEW_TYPE) {
+        switch (mCameraPreviewType) {
             case CAMERA_PREVIEW_TYPE_GL_SURFACE_VIEW:
                 CameraPreviewGLSurfaceView cameraPreviewGLSurfaceView = new CameraPreviewGLSurfaceView(context);
                 cameraPreviewGLSurfaceView.setCamera(camera, id);
